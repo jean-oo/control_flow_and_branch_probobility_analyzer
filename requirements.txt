@@ -1,0 +1,9 @@
+astor==0.8.1
+astunparse==1.6.3
+Flask==2.2.2
+graphviz==0.20.1
+matplotlib==3.6.2
+networkx==2.8.8
+pandas==1.5.2
+pydot==1.4.2
+pygraphviz==1.10

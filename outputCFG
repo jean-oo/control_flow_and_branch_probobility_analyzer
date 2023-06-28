@@ -1,0 +1,28 @@
+digraph "clusterfib.py" {
+	graph [label="fib.py"]
+	1 [label="1: cache = {(0): 0, (1): 1}
+"]
+	2 [label="3: def fibonacci_of(n):...
+"]
+	3 [label="10: [fibonacci_of(n) for n in range(15)]
+"]
+	2 -> 3 [label=""]
+	1 -> 2 [label=""]
+	subgraph clusterfibonacci_of {
+		graph [label=fibonacci_of]
+		5 [label="4: if n in cache:
+"]
+		6 [label="5: return cache[n]
+"]
+		5 -> 6 [label="n in cache"]
+		7 [label="7: cache[n] = fibonacci_of(n - 1) + fibonacci_of(n - 2)
+"]
+		9 [label="8: return cache[n]
+"]
+		"9_calls" [label="fibonacci_of
+fibonacci_of" shape=box]
+		9 -> "9_calls" [label=calls style=dashed]
+		7 -> 9 [label=""]
+		5 -> 7 [label="(n not in cache)"]
+	}
+}

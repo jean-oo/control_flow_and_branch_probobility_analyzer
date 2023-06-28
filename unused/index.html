@@ -1,0 +1,257 @@
+<html>
+<head>
+    <link rel="stylesheet" type= "text/css" href="{{url_for('static', filename='style.css') }}" />
+</head>
+<body>
+<div class="Aligner">
+  <div class="Aligner-item Aligner-item--top"></div>
+    <button type="button" onclick="clearSelection()">Clear Selection</button>
+    <div id="chart-container">
+   <svg width="1400" height="1200"></svg>
+            </div>
+  <div class="Aligner-item Aligner-item--bottom"></div>
+</div>
+   <script src="https://d3js.org/d3.v4.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/d3plus@2"></script>
+<script>
+let svg = d3.select("svg"),
+width = +svg.attr("width"),
+height = +svg.attr("height");
+let color = d3.scaleOrdinal(d3.schemeCategory20);
+
+let simulation = d3.forceSimulation()
+    .force("link", d3.forceLink().id(function(d) { return d.id; }).distance(function(d) {return 70;}).strength(0.1))
+    .force("charge", d3.forceManyBody().strength(-700))
+    .force("center", d3.forceCenter(width / 2, height / 2))
+    .force('x', d3.forceX(width/2).strength(0.05))
+    .force('y', d3.forceY(height/2).strength(0.05))
+    .force("collide",d3.forceCollide().radius(d => d.r * 1.7));
+
+simulation.gravity = 1
+
+var mLinkNum = {};
+
+
+d3.select("#chart-container").append("svg")
+
+d3.json("/static/graph.json", function(error, graph) {
+
+    sortLinks(graph);
+    setLinkIndexAndNum(graph);
+
+  if (error) throw error;
+
+  svg.append("svg:defs").selectAll("marker")
+    .data(["end"])      // Different link/path types can be defined here
+  .enter().append("svg:marker")    // This section adds in the arrows
+    .attr("id", "end")
+    .attr("viewBox", "0 -5 10 10")
+    .attr("refX", 15)
+    .attr("refY", 0.5)
+    .attr("markerWidth", 2)
+    .attr("markerHeight", 2)
+    .attr("orient", "auto")
+  .append("svg:line")
+    .attr("d", "M0,-5L10,0L0,5");
+
+  let link = svg.append("g")
+      .attr("class", "links")
+    .selectAll("line")
+    .data(graph.links)
+    .enter().append("svg:line")
+      .attr("stroke-width", function(d) { return Math.sqrt(d.value); }).attr("marker-end", "url(#arrow)")
+      .attr("marker-end", "url(#end)");
+
+
+  let node = svg.append("g")
+      .attr("class", "nodes")
+    .selectAll("circle")
+    .data(graph.nodes)
+    .enter().append("circle")
+      .attr("r", 25)
+      .attr("fill", function(d) { return color(d.group); })
+      .attr("line", function(d) { return d.line;})
+      .attr("label", function(d) { return d.label;})
+      .style("fill", function(d){ return d.color; })
+      .call(d3.drag()
+          .on("start", dragstarted)
+          .on("drag", dragged)
+          .on("end", dragended));
+
+let rect = svg.append("g")
+    .selectAll("class", "rect")
+    .data(graph.nodes)
+    .enter().append("text")
+    .style("fill", "#f1ddbf")
+    .style("opacity", "0.5");
+
+let text = svg.append("g")
+    .attr("class", "labels")
+    .selectAll("text")
+    .data(graph.nodes)
+    .enter().append("text")
+    .attr("dx", 12)
+    .attr("dy", ".35em")
+    .text(function(d) {
+        return d.label});
+
+
+document.getElementById("chart-container").append(svg.node());
+svg.selectAll("text")
+    .each(function(d) { d.bbox = this.getBBox(); });
+
+
+const xMargin = 4
+const yMargin = 2
+
+
+
+rect = svg.selectAll("rect")
+    .data(graph.nodes)
+    .enter().append("rect")
+    .attr("width", d => d.bbox.width + 2 * xMargin)
+    .attr("height", d => d.bbox.height + 2 * yMargin)
+    .attr('transform', function(d) {
+        return `translate(-${xMargin}, -${d.bbox.height * 0.8 + yMargin})`
+    });
+
+  node.append("title")
+      .text(function(d) { return d.id; });
+
+  simulation
+      .nodes(graph.nodes)
+      .on("tick", ticked);
+
+  simulation.force("link")
+      .links(graph.links);
+
+  function ticked() {
+    link
+        .attr("x1", function(d) { return d.source.x; })
+        .attr("y1", function(d) { return d.source.y; })
+        .attr("x2", function(d) { return d.target.x; })
+        .attr("y2", function(d) { return d.target.y; })
+        .attr("d", function (d) {
+            var dx = d.target.x - d.source.x,
+                    dy = d.target.y - d.source.y,
+                    dr = Math.sqrt(dx * dx + dy * dy);
+                // get the total link numbers between source and target node
+                var lTotalLinkNum = mLinkNum[d.source.id + "," + d.target.id] || mLinkNum[d.target.id + "," + d.source.id];
+                if (lTotalLinkNum > 1) {
+                    // if there are multiple links between these two nodes, we need generate different dr for each path
+                    dr = dr / (1 + (1 / lTotalLinkNum) * (d.linkindex - 1));
+                }
+                // generate svg path
+                return "M" + d.source.x + "," + d.source.y +
+                    "A" + dr + "," + dr + " 0 0 1," + d.target.x + "," + d.target.y +
+                    "A" + dr + "," + dr + " 0 0 0," + d.source.x + "," + d.source.y;
+            });
+
+    node
+        .attr("transform", function(d) {
+      return "translate(" + d.x + "," + d.y + ")";
+    })
+      text.attr("transform", function(d) {
+      return "translate(" + d.x + "," + d.y + ")";
+         })
+      rect.attr("transform", function(d) {
+      return "translate(" + (d.x + 8) + "," + (d.y-9)+ ")";
+         })
+  }
+
+let stack = []
+let map = new Map()
+
+let selected = d3.select("#chart-container").append("g")
+  .attr("class", "selected");
+
+  node.on("click", function(d) {
+      d3.select(this).transition().duration(2).style("stroke", "#78938a").style("stroke-width","2");
+      if (stack.length === 0) {
+          selected.append("header").text("Selected Path");
+      }
+
+      if (!map.has(d['label'])) {
+          stack.push(d['label'])
+        selected.append("value").text(d['label']);
+      }
+      /*
+      else {
+          let check = false
+          stack.forEach((id, i) => {
+              {#console.log(d3.select(this).datum().descendants())#}
+          })
+      }
+      */
+});
+
+});
+
+function dragstarted(d) {
+  if (!d3.event.active) simulation.alphaTarget(0.3).restart();
+  d.fx = d.x;
+  d.fy = d.y;
+}
+
+function dragged(d) {
+  d.fx = d3.event.x;
+  d.fy = d3.event.y;
+}
+
+function dragended(d) {
+  if (!d3.event.active) simulation.alphaTarget(0);
+  d.fx = null;
+  d.fy = null;
+}
+
+let clearSelection = function clearSelection() {
+    d3.select("#chart-container").select("g.selected").select("header").remove()
+    d3.select("#chart-container").select("g.selected").select("value").remove()
+    console.log(d3.select("#chart-container"))
+}
+
+function sortLinks(graph) {
+    graph.links.sort(function (a, b) {
+        if (a.source > b.source) {
+            return 1;
+        }
+        else if (a.source < b.source) {
+            return -1;
+        }
+        else {
+            if (a.target > b.target) {
+                return 1;
+            }
+            if (a.target < b.target) {
+                return -1;
+            }
+            else {
+                return 0;
+            }
+        }
+    });
+}
+
+function setLinkIndexAndNum(graph) {
+    for (var i = 0; i < graph.links.length; i++) {
+        if (i !== 0 &&
+            graph.links[i].source === graph.links[i - 1].source &&
+            graph.links[i].target === graph.links[i - 1].target) {
+            graph.links[i].linkindex = graph.links[i - 1].linkindex + 1;
+        }
+        else {
+            graph.links[i].linkindex = 1;
+        }
+        // save the total number of links between two nodes
+        if (mLinkNum[graph.links[i].target + "," + graph.links[i].source] !== undefined) {
+            mLinkNum[graph.links[i].target + "," + graph.links[i].source] = graph.links[i].linkindex;
+        }
+        else {
+            mLinkNum[graph.links[i].source + "," + graph.links[i].target] = graph.links[i].linkindex;
+        }
+    }
+}
+
+</script>
+   </body>
+</html>

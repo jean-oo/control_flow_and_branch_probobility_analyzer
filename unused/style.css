@@ -1,0 +1,56 @@
+.links line {
+  stroke: #999;
+  stroke-opacity: 0.6;
+}
+
+path.line {
+    fill: #ccc;
+    stroke: #333;
+    stroke-width: 1.5px;
+}
+
+
+.nodes circle {
+    stroke: #fff;
+    stroke-width: 1.5px;
+    fill: #525e75;
+}
+
+.labels {
+    background: #f1ddbf;
+    font-weight: bold;
+    font-family:Consolas,Monaco,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New, monospace;
+    text-align: left;
+}
+
+#chart-container > svg > rect {
+    fill: #f1ddbf;
+    fill-opacity: 30%;
+    stroke: #f1ddbf;
+    stroke-width: 2px;
+}
+
+.Aligner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+#chart-container {
+    max-width: 50%;
+    max-height: 50%;
+}
+
+.selected {
+    display: flex;
+  flex-direction: column;
+    border: #525e75;
+}
+
+.Aligner-item--top {
+  align-self: flex-start;
+}
+
+.Aligner-item--bottom {
+  align-self: flex-end;
+}
